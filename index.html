@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Trace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Layered backgrounds — deeper than before */
+  --bg:      #0f0e0b;
+  --bg2:     #141210;
+  --bg3:     #1c1a15;
+  --bg4:     #252118;
+  --bg5:     #2e2920;
+
+  /* Borders — warmer, more visible */
+  --border:  rgba(255,215,140,0.07);
+  --border2: rgba(255,215,140,0.14);
+  --border3: rgba(255,215,140,0.22);
+
+  /* Text ramp */
+  --text:    #f0e6d0;
+  --text2:   #8a7f6e;
+  --text3:   #4a4438;
+
+  /* Layer accent colors */
+  --l-api:      #d4a843;
+  --l-auth:     #c17845;
+  --l-database: #a06040;
+  --l-external: #b07070;
+
+  /* Action type colors */
+  --a-read:  #7ba7c4;
+  --a-edit:  #c27060;
+  --a-trace: #7aaa85;
+
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', system-ui, sans-serif;
+
+  /* Shared radii */
+  --r-sm: 4px;
+  --r-md: 6px;
+}
+
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  display: grid;
+  grid-template-rows: 48px 1fr 52px;
+  grid-template-columns: 1fr 360px;
+}
+
+/* ── Header ── */
+header {
+  grid-row: 1; grid-column: 1 / -1;
+  display: flex; align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg3) 0%, var(--bg2) 100%);
+  box-shadow: 0 1px 0 var(--border), 0 4px 16px rgba(0,0,0,0.35);
+  z-index: 20;
+}
+
+.h-logo {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--text); opacity: 0.55;
+  padding: 0 20px;
+  border-right: 1px solid var(--border);
+  height: 100%; display: flex; align-items: center;
+  flex-shrink: 0;
+}
+
+.h-breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 18px; height: 100%;
+  border-right: 1px solid var(--border);
+  flex-shrink: 0; min-width: 0;
+}
+.h-breadcrumb .action-pill {
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: var(--r-sm); flex-shrink: 0;
+  opacity: 0; transition: opacity 0.25s ease;
+  border: 1px solid transparent;
+}
+.h-breadcrumb .action-pill.show { opacity: 1; }
+.h-breadcrumb .h-sep { color: var(--text3); font-size: 10px; }
+.h-breadcrumb .h-file {
+  font-family: var(--mono); font-size: 11px; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.h-breadcrumb .h-file.show { opacity: 1; }
+.h-breadcrumb .h-layer {
+  font-family: var(--mono); font-size: 9px;
+  padding: 2px 7px; border-radius: var(--r-sm);
+  flex-shrink: 0; opacity: 0; transition: opacity 0.25s ease;
+  border: 1px solid transparent;
+}
+.h-breadcrumb .h-layer.show { opacity: 1; }
+
+.h-back {
+  display: none; align-items: center; gap: 5px;
+  padding: 0 16px; height: 100%;
+  border-right: 1px solid var(--border);
+  font-family: var(--mono); font-size: 10px; color: var(--text2);
+  cursor: pointer; transition: color 0.15s; flex-shrink: 0;
+  background: none; border-left: none; border-top: none; border-bottom: none;
+}
+.h-back:hover { color: var(--text); }
+
+.h-spacer { flex: 1; }
+
+.h-progress {
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 18px; flex-shrink: 0;
+}
+.h-prog-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--bg5); border: 1px solid var(--border2);
+  transition: background 0.25s, transform 0.25s, border-color 0.25s;
+}
+.h-prog-dot.done {
+  background: var(--text3); border-color: var(--text3);
+}
+.h-prog-dot.active {
+  background: var(--text2); border-color: var(--text2);
+  transform: scale(1.5);
+  box-shadow: 0 0 6px rgba(200,180,140,0.4);
+}
+
+.h-step {
+  font-family: var(--mono); font-size: 10px; color: var(--text3);
+  padding: 0 18px; border-left: 1px solid var(--border);
+  height: 100%; display: flex; align-items: center; gap: 3px;
+  flex-shrink: 0; letter-spacing: 0.05em;
+}
+.h-step span { color: var(--text2); }
+
+/* ── Canvas ── */
+#canvas-wrap {
+  grid-row: 2; grid-column: 1;
+  position: relative; overflow: hidden;
+  background: var(--bg); min-width: 0;
+}
+/* Subtle dot grid */
+#canvas-wrap::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image: radial-gradient(circle, rgba(255,215,140,0.022) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+/* Subtle radial vignette to focus the eye */
+#canvas-wrap::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, transparent 40%, rgba(10,9,7,0.55) 100%);
+}
+#cy { position: absolute; inset: 0; z-index: 1; }
+
+#zoom-overlay {
+  position: absolute; inset: 0; background: var(--bg);
+  opacity: 0; pointer-events: none; z-index: 5;
+  transition: opacity 0.2s ease;
+}
+#zoom-overlay.active { opacity: 1; pointer-events: all; }
+
+#layer-crumb {
+  position: absolute; top: 14px; left: 14px; z-index: 6;
+  display: none; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text2);
+  background: rgba(15,14,11,0.85);
+  backdrop-filter: blur(8px);
+  padding: 5px 12px; border-radius: var(--r-md);
+  border: 1px solid var(--border2);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+}
+#layer-crumb .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+#fn-hint {
+  position: absolute; bottom: 16px; left: 50%;
+  transform: translateX(-50%); z-index: 6; display: none;
+  font-size: 10px; color: var(--text3); font-family: var(--mono);
+  letter-spacing: 0.05em;
+}
+
+/* Pulse ring */
+@keyframes ring-out {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  100% { transform: scale(1.95); opacity: 0; }
+}
+.pulse-ring {
+  position: absolute; border-radius: 50%; border: 1.5px solid;
+  pointer-events: none; z-index: 2;
+  animation: ring-out 0.6s ease-out forwards;
+}
+
+/* Count badges */
+.cy-badge { position: absolute; pointer-events: none; z-index: 3; transform: translate(-50%,-50%); }
+.badge-count {
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.4);
+}
+
+/* ── Trace panel (right) ── */
+#trace-panel {
+  grid-row: 2; grid-column: 2;
+  border-left: 1px solid var(--border);
+  background: var(--bg2);
+  display: flex; flex-direction: column;
+  overflow: hidden; min-width: 0;
+  /* Subtle inner shadow on left edge for depth */
+  box-shadow: inset 1px 0 0 var(--border);
+}
+
+/* Current event card */
+#current-event {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+  min-height: 0;
+  /* Animate content changes */
+  transition: background 0.2s ease;
+}
+#current-event:has(.ce-header) {
+  background: var(--bg3);
+}
+
+.ce-empty {
+  font-family: var(--mono); font-size: 10px; color: var(--text3);
+  padding: 4px 0; letter-spacing: 0.04em;
+}
+
+.ce-header {
+  display: flex; align-items: flex-start; gap: 9px;
+  margin-bottom: 11px;
+}
+.ce-pill {
+  font-family: var(--mono); font-size: 8.5px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: var(--r-sm);
+  flex-shrink: 0; margin-top: 2px;
+  border: 1px solid transparent;
+}
+.ce-file {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  color: var(--text); line-height: 1.4; word-break: break-all;
+}
+.ce-file .fn-name { opacity: 0.75; }
+.ce-layer-tag {
+  font-family: var(--mono); font-size: 8.5px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: var(--r-sm);
+  display: inline-block; margin-top: 4px;
+  border: 1px solid transparent;
+}
+.ce-reasoning {
+  font-size: 12px; line-height: 1.7; color: var(--text2);
+  margin-bottom: 12px;
+}
+
+/* IDE-style diff block */
+.ce-diff {
+  border-radius: var(--r-md); overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  font-size: 0; /* removes whitespace between inline elements */
+}
+.ce-diff-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px;
+  background: var(--bg4);
+  border-bottom: 1px solid var(--border);
+}
+.ce-diff-filename {
+  font-family: var(--mono); font-size: 9px; color: var(--text3);
+  letter-spacing: 0.04em;
+}
+.ce-diff-stats { display: flex; gap: 6px; margin-left: auto; }
+.ce-diff-stat-add { font-family: var(--mono); font-size: 9px; color: var(--a-trace); }
+.ce-diff-stat-del { font-family: var(--mono); font-size: 9px; color: var(--a-edit); }
+
+.ce-diff-line {
+  display: flex;
+  font-family: var(--mono); font-size: 10px; line-height: 1.7;
+  white-space: pre; overflow: hidden;
+}
+.ce-diff-line .ln {
+  width: 28px; text-align: right; padding-right: 10px;
+  color: var(--text3); opacity: 0.5; flex-shrink: 0;
+  user-select: none; font-size: 9px;
+}
+.ce-diff-line .lc { flex: 1; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; }
+.ce-diff-line .pfx { width: 14px; flex-shrink: 0; text-align: center; }
+.ce-diff-line.del { background: rgba(194,112,96,0.1); color: #c07060; }
+.ce-diff-line.add { background: rgba(122,170,133,0.1); color: #6aaa7a; }
+.ce-diff-line.ctx { color: var(--text3); }
+.ce-diff-line.del .pfx { color: var(--a-edit); }
+.ce-diff-line.add .pfx { color: var(--a-trace); }
+
+/* History feed */
+.trace-feed-header {
+  padding: 8px 16px 5px;
+  font-family: var(--mono); font-size: 8px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--text3);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+#trace-feed { flex: 1; overflow-y: auto; padding: 2px 0; }
+#trace-feed::-webkit-scrollbar { width: 3px; }
+#trace-feed::-webkit-scrollbar-thumb { background: var(--bg5); border-radius: 2px; }
+.tf-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 16px;
+  opacity: 0; transition: opacity 0.3s ease, background 0.12s ease;
+  cursor: pointer;
+}
+.tf-row.visible { opacity: 1; }
+.tf-row:hover { background: var(--bg3); }
+.tf-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.tf-info { flex: 1; min-width: 0; }
+.tf-fn {
+  font-family: var(--mono); font-size: 10px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 500; opacity: 0.78;
+}
+.tf-meta {
+  font-family: var(--mono); font-size: 9px; color: var(--text3);
+  display: flex; gap: 6px; margin-top: 2px; align-items: center;
+}
+.tf-ts { margin-left: auto; }
+.tf-type-dot {
+  width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* ── Function detail slide-up ── */
+#detail-panel {
+  position: absolute; bottom: 0; left: 0; right: 360px;
+  background: rgba(15,14,11,0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border3);
+  z-index: 8; max-height: 52%; overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
+}
+#detail-panel.open { transform: translateY(0); }
+#detail-panel::-webkit-scrollbar { width: 3px; }
+#detail-panel::-webkit-scrollbar-thumb { background: var(--bg5); }
+
+.d-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  background: rgba(20,18,14,0.98);
+  backdrop-filter: blur(8px);
+}
+.d-fn  { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+.d-tag {
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: var(--r-sm);
+  border: 1px solid transparent;
+}
+.d-close {
+  margin-left: auto; width: 24px; height: 24px; border: none;
+  background: var(--bg4); color: var(--text2); cursor: pointer;
+  font-size: 13px; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.d-close:hover { background: rgba(194,112,96,0.2); color: var(--text); }
+
+.d-body { padding: 14px 18px; }
+.ev-block { margin-bottom: 14px; }
+.ev-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ev-pill {
+  font-family: var(--mono); font-size: 8.5px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: var(--r-sm);
+  border: 1px solid transparent;
+}
+.ev-pill.read  { background: rgba(123,167,196,0.12); color: var(--a-read);  border-color: rgba(123,167,196,0.2); }
+.ev-pill.edit  { background: rgba(194,112,96,0.12);  color: var(--a-edit);  border-color: rgba(194,112,96,0.2); }
+.ev-pill.trace { background: rgba(122,170,133,0.12); color: var(--a-trace); border-color: rgba(122,170,133,0.2); }
+.ev-ts { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.reasoning-box {
+  font-size: 11.5px; line-height: 1.7; color: var(--text2);
+  padding: 9px 12px; background: var(--bg3); border-radius: var(--r-md);
+  border-left: 2px solid; margin-bottom: 10px;
+}
+
+.diff-label {
+  font-family: var(--mono); font-size: 8px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 5px;
+}
+.diff-block {
+  border-radius: var(--r-md); overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+}
+.diff-line {
+  display: flex;
+  font-family: var(--mono); font-size: 9.5px; line-height: 1.7;
+  white-space: pre; overflow: hidden;
+}
+.diff-line .pfx { width: 14px; flex-shrink: 0; text-align: center; }
+.diff-line .lc  { flex: 1; padding: 0 10px; }
+.diff-line.del { background: rgba(194,112,96,0.1); color: #c07060; }
+.diff-line.add { background: rgba(122,170,133,0.1); color: #6aaa7a; }
+.diff-line.ctx { color: var(--text3); }
+.diff-line.del .pfx { color: var(--a-edit); }
+.diff-line.add .pfx { color: var(--a-trace); }
+
+/* ── Bottom bar ── */
+#bottom-bar {
+  grid-row: 3; grid-column: 1 / -1;
+  display: flex; align-items: center;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg2) 0%, var(--bg3) 100%);
+  box-shadow: 0 -1px 0 var(--border);
+}
+
+#bottom-summary {
+  flex: 1; padding: 0 20px; min-width: 0;
+  font-size: 12px; line-height: 1.4; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; transition: opacity 0.3s ease;
+}
+#bottom-summary.show { opacity: 1; }
+#bottom-summary strong { color: var(--text); font-weight: 500; }
+
+.ctrl-sep {
+  width: 1px; background: var(--border);
+  align-self: stretch; flex-shrink: 0;
+}
+
+.ctrl-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 18px; height: 100%; cursor: pointer;
+  font-family: var(--mono); font-size: 10px; color: var(--text2);
+  background: none; border: none;
+  transition: color 0.12s, background 0.12s;
+  white-space: nowrap; flex-shrink: 0; letter-spacing: 0.04em;
+}
+.ctrl-btn:hover:not(:disabled) { color: var(--text); background: rgba(255,215,140,0.04); }
+.ctrl-btn:disabled { color: var(--text3); cursor: default; }
+.ctrl-btn.primary { color: var(--text); font-weight: 500; }
+.ctrl-btn kbd {
+  font-family: var(--mono); font-size: 8px;
+  padding: 1px 5px; background: var(--bg5);
+  border: 1px solid var(--border2); border-radius: 3px;
+  color: var(--text3); font-weight: 400;
+}
+#play-icon { font-size: 10px; opacity: 0.7; }
+
+.autoplay-label {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 18px; height: 100%;
+  font-family: var(--mono); font-size: 10px; color: var(--text3);
+  cursor: pointer; transition: color 0.12s;
+  flex-shrink: 0; letter-spacing: 0.04em;
+}
+.autoplay-label:hover { color: var(--text2); }
+.toggle-pill {
+  width: 28px; height: 14px;
+  background: var(--bg5); border: 1px solid var(--border2);
+  border-radius: 7px; position: relative; transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+}
+.toggle-pill::after {
+  content: ''; width: 10px; height: 10px;
+  background: var(--text3); border-radius: 50%;
+  position: absolute; top: 1px; left: 1px;
+  transition: transform 0.2s, background 0.2s;
+}
+.toggle-pill.on { background: rgba(122,170,133,0.18); border-color: rgba(122,170,133,0.4); }
+.toggle-pill.on::after { transform: translateX(14px); background: var(--a-trace); }
+
+.sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+</style>
+</head>
+<body>
+<h2 class="sr-only">Agent Trace — step-by-step walkthrough of an AI coding agent's actions</h2>
+
+<header>
+  <div class="h-logo">Agent Trace</div>
+  <button class="h-back" id="back-btn" onclick="exitZoom()">← Layers</button>
+  <div class="h-breadcrumb">
+    <span class="action-pill" id="h-pill"></span>
+    <span class="h-file" id="h-file">—</span>
+    <span class="h-layer" id="h-layer"></span>
+  </div>
+  <div class="h-spacer"></div>
+  <div class="h-progress" id="h-progress"></div>
+  <div class="h-step">step <span id="stat-step">0</span>/<span id="stat-total">0</span></div>
+</header>
+
+<div id="canvas-wrap">
+  <div id="cy"></div>
+  <div id="zoom-overlay"></div>
+  <div id="layer-crumb"><span class="dot"></span><span id="crumb-text"></span></div>
+  <div id="fn-hint">click function to inspect</div>
+  <div id="detail-panel">
+    <div class="d-header">
+      <div class="d-fn" id="d-fn"></div>
+      <div class="d-tag" id="d-tag"></div>
+      <button class="d-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="d-body" id="d-body"></div>
+  </div>
+</div>
+
+<div id="trace-panel">
+  <div id="current-event">
+    <div class="ce-empty" id="ce-placeholder">Step through the trace to see agent actions →</div>
+  </div>
+  <div class="trace-feed-header">History</div>
+  <div id="trace-feed"></div>
+</div>
+
+<div id="bottom-bar">
+  <div id="bottom-summary"></div>
+  <div class="ctrl-sep"></div>
+  <label class="autoplay-label" title="Auto-advance">
+    <div class="toggle-pill" id="toggle-pill"></div>
+    Auto
+    <input type="checkbox" id="autoplay-cb" style="display:none" onchange="onAutoChange()">
+  </label>
+  <div class="ctrl-sep"></div>
+  <button class="ctrl-btn" id="prev-btn" onclick="goPrev()" disabled>← Prev</button>
+  <div class="ctrl-sep"></div>
+  <button class="ctrl-btn primary" id="next-btn" onclick="goNext()">
+    <span id="play-icon">▶</span> Next <kbd>Space</kbd>
+  </button>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────
+const GRAPH = {
+  layers: [
+    { id:'api',      label:'API',      subtitle:'Entry points'  },
+    { id:'auth',     label:'Auth',     subtitle:'Token logic'   },
+    { id:'database', label:'Database', subtitle:'Persistence'   },
+    { id:'external', label:'External', subtitle:'3rd-party I/O' },
+  ],
+  layer_edges: [
+    { from:'api',  to:'auth'     },
+    { from:'auth', to:'database' },
+    { from:'auth', to:'external' },
+  ],
+  functions: [
+    { id:'routes/auth.py:login',        layer:'api',      label:'login',            file:'routes/auth.py' },
+    { id:'routes/auth.py:logout',       layer:'api',      label:'logout',           file:'routes/auth.py' },
+    { id:'routes/users.py:get_profile', layer:'api',      label:'get_profile',      file:'routes/users.py' },
+    { id:'auth.py:validate_token',      layer:'auth',     label:'validate_token',   file:'auth.py' },
+    { id:'auth.py:refresh_token',       layer:'auth',     label:'refresh_token',    file:'auth.py' },
+    { id:'auth.py:hash_password',       layer:'auth',     label:'hash_password',    file:'auth.py' },
+    { id:'db.py:query_user',            layer:'database', label:'query_user',       file:'db.py' },
+    { id:'db.py:update_session',        layer:'database', label:'update_session',   file:'db.py' },
+    { id:'db.py:insert_audit_log',      layer:'database', label:'insert_audit_log', file:'db.py' },
+    { id:'redis_client.py:cache_get',   layer:'external', label:'cache_get',        file:'redis_client.py' },
+    { id:'redis_client.py:cache_set',   layer:'external', label:'cache_set',        file:'redis_client.py' },
+  ],
+  function_edges: [
+    { from:'routes/auth.py:login',        to:'auth.py:validate_token'    },
+    { from:'auth.py:validate_token',      to:'db.py:query_user'          },
+    { from:'auth.py:validate_token',      to:'redis_client.py:cache_get' },
+    { from:'auth.py:refresh_token',       to:'db.py:update_session'      },
+    { from:'auth.py:hash_password',       to:'db.py:insert_audit_log'    },
+    { from:'routes/users.py:get_profile', to:'auth.py:validate_token'    },
+  ],
+};
+
+const EVENTS = [
+  { type:'read_file',  target:'auth.py:validate_token',
+    reasoning:'Reading validate_token to understand the current token expiry logic before proposing any changes.' },
+
+  { type:'trace_call', target:'db.py:query_user',
+    reasoning:'Following the call chain into Database — query_user is invoked by validate_token, need to see what SQL it generates.' },
+
+  { type:'edit_file',  target:'auth.py:validate_token',
+    reasoning:'Adding a 30-second clock-skew buffer to token expiry check. Prevents race conditions when tokens expire mid-request.',
+    content_before:"def validate_token(token):\n    payload = jwt.decode(token, SECRET)\n    if payload['exp'] < time.time():\n        raise TokenExpiredError()\n    return payload",
+    content_after: "def validate_token(token):\n    payload = jwt.decode(token, SECRET)\n    # 30s buffer for clock skew\n    if payload['exp'] < time.time() - 30:\n        raise TokenExpiredError()\n    return payload" },
+
+  { type:'read_file',  target:'routes/auth.py:login',
+    reasoning:'Checking the login endpoint — need to understand how tokens are originally issued before reviewing the full auth flow.' },
+
+  { type:'trace_call', target:'redis_client.py:cache_get',
+    reasoning:'Tracing cache_get to verify cached token keys are namespaced per user. A shared namespace would allow cross-user token collisions.' },
+
+  { type:'edit_file',  target:'db.py:query_user',
+    reasoning:'Switching SELECT * to explicit columns and adding LIMIT 1. Avoids full table scan on large user tables and prevents over-fetching PII.',
+    content_before:"def query_user(email):\n    return db.execute('SELECT * FROM users WHERE email = ?', [email]).fetchone()",
+    content_after: "def query_user(email):\n    return db.execute(\n        'SELECT id, email, role, created_at FROM users WHERE email = ? LIMIT 1',\n        [email]\n    ).fetchone()" },
+
+  { type:'read_file',  target:'auth.py:refresh_token',
+    reasoning:'Checking refresh_token — if it calls validate_token internally, the 30s buffer fix already covers it. Otherwise needs a separate patch.' },
+
+  { type:'trace_call', target:'db.py:update_session',
+    reasoning:'Tracing update_session to confirm the session row is updated atomically with the new token value after refresh.' },
+
+  { type:'edit_file',  target:'auth.py:refresh_token',
+    reasoning:'refresh_token was not calling validate_token — it had its own raw expiry check without the buffer. Patched and wired to update_session.',
+    content_before:"def refresh_token(token):\n    old = validate_token(token)\n    return issue_token(old['user_id'])",
+    content_after: "def refresh_token(token):\n    old = validate_token(token)  # includes 30s buffer\n    new_token = issue_token(old['user_id'])\n    update_session(old['user_id'], new_token)\n    return new_token" },
+
+  { type:'read_file',  target:'routes/users.py:get_profile',
+    reasoning:'Verifying get_profile enforces authorisation before returning user fields — checking for missing auth middleware calls.' },
+
+  { type:'trace_call', target:'db.py:insert_audit_log',
+    reasoning:'Confirming all auth events are logged with the correct user context. Audit trail completeness check before wrapping up.' },
+];
+
+EVENTS.forEach((e, i) => {
+  e.timestamp = new Date(Date.now() - (EVENTS.length - i) * 95000)
+    .toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+});
+
+// ─── COLORS ──────────────────────────────────────────
+const LC = {
+  api:      { main:'#d4a843', fill:'rgba(212,168,67,0.15)',  glow:'rgba(212,168,67,0.35)' },
+  auth:     { main:'#c17845', fill:'rgba(193,120,69,0.15)',  glow:'rgba(193,120,69,0.35)' },
+  database: { main:'#a06040', fill:'rgba(160,96,64,0.15)',   glow:'rgba(160,96,64,0.35)'  },
+  external: { main:'#b07070', fill:'rgba(176,112,112,0.15)', glow:'rgba(176,112,112,0.35)'},
+};
+const AC = {
+  read_file:  { color:'#7ba7c4', bg:'rgba(123,167,196,0.14)', label:'read file'  },
+  edit_file:  { color:'#c27060', bg:'rgba(194,112,96,0.14)',  label:'edit file'  },
+  trace_call: { color:'#7aaa85', bg:'rgba(122,170,133,0.14)', label:'trace call' },
+};
+function lc(id, k) { return (LC[id] || LC.api)[k]; }
+function ac(t, k)  { return (AC[t]  || AC.read_file)[k]; }
+function typeClass(t) { return t==='edit_file'?'edit':t==='trace_call'?'trace':'read'; }
+
+// ─── STATE ────────────────────────────────────────────
+const S = {
+  step:         -1,   // index of the currently displayed event (-1 = none)
+  touchedFns:   {},
+  layerCounts:  {},
+  view:         'layer',
+  zoomedLayer:  null,
+  autoplay:     false,
+  autoTimer:    null,
+};
+
+document.getElementById('stat-total').textContent = EVENTS.length;
+
+// ─── CYTOSCAPE ────────────────────────────────────────
+let cy;
+
+function cyStyle() {
+  const layerSt = GRAPH.layers.flatMap(l => {
+    const c = LC[l.id] || LC.api;
+    return [
+      { selector:`node#${l.id}`, style:{
+          'background-color':c.fill, 'border-color':c.main, 'border-width':1.5,
+          'color':'#ece4d2',
+          'text-background-color':'rgba(22,20,16,0.88)',
+          'text-background-opacity':1,'text-background-padding':'4px',
+          'text-background-shape':'roundrectangle',
+          'shadow-color':c.main,'shadow-blur':10,'shadow-opacity':0.22,
+      }},
+      { selector:`node#${l.id}.pulsing`, style:{'shadow-blur':30,'shadow-opacity':0.6,'border-width':2.5}},
+      { selector:`node[layer="${l.id}"]`, style:{
+          'background-color':c.fill,'border-color':c.main,
+          'shadow-color':c.main,'shadow-blur':8,'shadow-opacity':0.35,
+      }},
+    ];
+  });
+  return [
+    { selector:'node', style:{
+        'font-family':'JetBrains Mono, monospace','font-size':11,'font-weight':600,
+        'label':'data(label)','text-valign':'center','text-halign':'center',
+        'width':82,'height':82,'shape':'ellipse','border-width':1.5,
+        'color':'#ece4d2',
+        'text-background-color':'rgba(22,20,16,0.88)',
+        'text-background-opacity':1,'text-background-padding':'4px',
+        'text-background-shape':'roundrectangle',
+        'shadow-offset-x':0,'shadow-offset-y':0,
+    }},
+    { selector:'node.fn-node', style:{
+        'width':112,'height':32,'font-size':10,'font-weight':600,
+        'shape':'roundrectangle','border-width':1.5,
+        'text-valign':'center','text-halign':'center',
+        'text-background-opacity':0,'color':'#ece4d2',
+    }},
+    { selector:'edge', style:{
+        'width':1.2,'line-color':'rgba(255,220,160,0.1)',
+        'target-arrow-color':'rgba(255,220,160,0.13)',
+        'target-arrow-shape':'triangle','arrow-scale':0.65,'curve-style':'bezier',
+    }},
+    { selector:'edge.active-flow', style:{
+        'line-color':'rgba(255,220,160,0.4)','width':2,
+        'target-arrow-color':'rgba(255,220,160,0.45)',
+    }},
+    ...layerSt,
+  ];
+}
+
+const LAYER_POS = { api:{x:0,y:-150}, auth:{x:0,y:0}, database:{x:-155,y:145}, external:{x:155,y:145} };
+
+function initCy(els) {
+  if (cy) cy.destroy();
+  cy = cytoscape({ container:document.getElementById('cy'), elements:els, style:cyStyle(), layout:{name:'preset'}, userZoomingEnabled:true, userPanningEnabled:true, minZoom:0.3, maxZoom:3 });
+}
+
+function buildLayerEls() {
+  return [
+    ...GRAPH.layers.map(l => ({ data:{id:l.id,label:l.label}, classes:['layer-node'] })),
+    ...GRAPH.layer_edges.map((e,i) => ({ data:{id:`le${i}`,source:e.from,target:e.to}, classes:['layer-edge'] })),
+  ];
+}
+function buildFnEls(layerId) {
+  const fns = GRAPH.functions.filter(f => f.layer===layerId && S.touchedFns[f.id]);
+  const fnIds = new Set(fns.map(f=>f.id));
+  return [
+    ...fns.map(f => ({ data:{id:f.id,label:f.label,layer:layerId}, classes:['fn-node'] })),
+    ...GRAPH.function_edges.filter(e=>fnIds.has(e.from)&&fnIds.has(e.to)).map((e,i) => ({ data:{id:`fe${i}`,source:e.from,target:e.to} })),
+  ];
+}
+
+// ─── LAYER VIEW ───────────────────────────────────────
+const badgeEls = {};
+function showLayerView() {
+  initCy(buildLayerEls());
+  cy.nodes().forEach(n => { const p=LAYER_POS[n.id()]; if(p) n.position(p); });
+  requestAnimationFrame(() => {
+    cy.fit(cy.nodes(), 55);
+    const w = document.getElementById('canvas-wrap');
+    const minZ = Math.min(1.1, (w.offsetWidth-90)/310);
+    if (cy.zoom()<minZ) { cy.zoom(minZ); cy.center(); }
+    updateBadges();
+  });
+  cy.on('tap','node.layer-node', e => {
+    if (S.touchedFns && GRAPH.functions.some(f=>f.layer===e.target.id()&&S.touchedFns[f.id]))
+      zoomIntoLayer(e.target.id());
+  });
+  cy.on('render', updateBadgePos);
+}
+
+function updateBadges() {
+  if (S.view!=='layer') return;
+  Object.values(badgeEls).forEach(el=>el.remove());
+  Object.keys(badgeEls).forEach(k=>delete badgeEls[k]);
+  cy.nodes().forEach(node => {
+    const id=node.id(), cnt=S.layerCounts[id]||0; if(!cnt) return;
+    const c=LC[id]||LC.api, pos=node.renderedPosition();
+    const el=document.createElement('div'); el.className='cy-badge';
+    el.style.left=pos.x+'px'; el.style.top=(pos.y-46)+'px';
+    const badge=document.createElement('div'); badge.className='badge-count';
+    badge.style.cssText=`background:${c.fill};color:${c.main};border:1px solid ${c.main};`;
+    badge.textContent=`${cnt}×`;
+    el.appendChild(badge);
+    document.getElementById('canvas-wrap').appendChild(el);
+    badgeEls[id]=el;
+  });
+}
+function updateBadgePos() {
+  if (S.view!=='layer') return;
+  cy.nodes().forEach(node=>{
+    const el=badgeEls[node.id()]; if(!el) return;
+    const pos=node.renderedPosition();
+    el.style.left=pos.x+'px'; el.style.top=(pos.y-46)+'px';
+  });
+}
+
+function pulseLayer(layerId, actionType) {
+  if (S.view!=='layer') return;
+  const node=cy.getElementById(layerId); if(!node||!node.length) return;
+  node.addClass('pulsing'); setTimeout(()=>node.removeClass('pulsing'),800);
+  const pos=node.renderedPosition(), size=node.renderedWidth(), color=ac(actionType,'color');
+  const ring=document.createElement('div'); ring.className='pulse-ring';
+  ring.style.cssText=`left:${pos.x-size/2}px;top:${pos.y-size/2}px;width:${size}px;height:${size}px;border-color:${color};`;
+  document.getElementById('canvas-wrap').appendChild(ring);
+  setTimeout(()=>ring.remove(),700);
+  const edges=cy.edges().filter(e=>e.data('source')===layerId||e.data('target')===layerId);
+  edges.addClass('active-flow'); setTimeout(()=>edges.removeClass('active-flow'),600);
+}
+
+// ─── FUNCTION VIEW ────────────────────────────────────
+function zoomIntoLayer(layerId) {
+  S.view='function'; S.zoomedLayer=layerId;
+  Object.values(badgeEls).forEach(el=>el.remove());
+  Object.keys(badgeEls).forEach(k=>delete badgeEls[k]);
+  const ov=document.getElementById('zoom-overlay'); ov.classList.add('active');
+  setTimeout(()=>{
+    initCy(buildFnEls(layerId));
+    cy.layout({name:'circle',padding:60,animate:false}).run();
+    cy.fit(cy.nodes(),60); if(cy.zoom()>1.4){cy.zoom(1.4);cy.center();}
+    cy.on('tap','node.fn-node',e=>openDetail(e.target.id()));
+    ov.classList.remove('active');
+    const crumb=document.getElementById('layer-crumb');
+    document.getElementById('crumb-text').textContent=GRAPH.layers.find(l=>l.id===layerId)?.label;
+    crumb.querySelector('.dot').style.background=lc(layerId,'main');
+    crumb.style.display='flex';
+    document.getElementById('fn-hint').style.display='block';
+    document.getElementById('back-btn').style.display='flex';
+  },200);
+}
+function exitZoom() {
+  if(S.view!=='function') return;
+  S.view='layer'; S.zoomedLayer=null; closeDetail();
+  const ov=document.getElementById('zoom-overlay'); ov.classList.add('active');
+  setTimeout(()=>{
+    document.getElementById('layer-crumb').style.display='none';
+    document.getElementById('fn-hint').style.display='none';
+    document.getElementById('back-btn').style.display='flex';
+    document.getElementById('back-btn').style.display='none';
+    showLayerView(); ov.classList.remove('active');
+  },200);
+}
+function refreshFnView(layerId) {
+  cy.elements().remove(); cy.add(buildFnEls(layerId));
+  cy.layout({name:'circle',padding:60,animate:false}).run();
+  cy.fit(cy.nodes(),60); if(cy.zoom()>1.4){cy.zoom(1.4);cy.center();}
+}
+
+// ─── DETAIL PANEL (function click) ────────────────────
+function openDetail(fnId) {
+  const events=S.touchedFns[fnId]; if(!events||!events.length) return;
+  const fn=GRAPH.functions.find(f=>f.id===fnId);
+  const c=lc(fn.layer,'main');
+  document.getElementById('d-fn').textContent=fn.label;
+  document.getElementById('d-fn').style.color=c;
+  const tag=document.getElementById('d-tag');
+  tag.textContent=GRAPH.layers.find(l=>l.id===fn.layer)?.label;
+  tag.style.cssText=`background:${lc(fn.layer,'fill')};color:${c};border:1px solid ${c};`;
+  const body=document.getElementById('d-body'); body.innerHTML='';
+  events.forEach((ev,i)=>{
+    const tc=typeClass(ev.type);
+    const block=document.createElement('div'); block.className='ev-block';
+    const head=document.createElement('div'); head.className='ev-head';
+    head.innerHTML=`<span class="ev-pill ${tc}">${ev.type.replace(/_/g,' ')}</span><span class="ev-ts">${ev.timestamp}</span>`;
+    block.appendChild(head);
+    const rb=document.createElement('div'); rb.className='reasoning-box';
+    rb.style.borderLeftColor=ac(ev.type,'color'); rb.textContent=ev.reasoning;
+    block.appendChild(rb);
+    if(ev.content_before){
+      const dl=document.createElement('div'); dl.className='diff-label'; dl.textContent='Diff';
+      block.appendChild(dl);
+      const db=document.createElement('div'); db.className='diff-block';
+      buildDiff(ev.content_before,ev.content_after).forEach(line=>{
+        const d=document.createElement('div'); d.className=`diff-line ${line.type}`;
+        const pfx=line.type==='del'?'−':line.type==='add'?'+':'';
+        d.innerHTML=`<span class="pfx">${pfx}</span><span class="lc">${line.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`;
+        db.appendChild(d);
+      });
+      block.appendChild(db);
+    }
+    if(i<events.length-1){const hr=document.createElement('div');hr.style.cssText='border-top:1px solid rgba(255,220,160,0.05);margin:10px 0';block.appendChild(hr);}
+    body.appendChild(block);
+  });
+  document.getElementById('detail-panel').classList.add('open');
+}
+function closeDetail(){document.getElementById('detail-panel').classList.remove('open');}
+
+function buildDiff(before,after){
+  const b=before.split('\n'),a=after.split('\n'),n=b.length,m=a.length;
+  const dp=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)
+    dp[i][j]=b[i]===a[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+  const res=[];let i=0,j=0;
+  while(i<n||j<m){
+    if(i<n&&j<m&&b[i]===a[j]){res.push({type:'ctx',text:b[i]});i++;j++;}
+    else if(j<m&&(i>=n||dp[i+1][j]<=dp[i][j+1])){res.push({type:'add',text:a[j]});j++;}
+    else{res.push({type:'del',text:b[i]});i++;}
+  }
+  return res;
+}
+
+// ─── STEP ENGINE ──────────────────────────────────────
+function applyStep(idx) {
+  const ev = EVENTS[idx];
+  const fn = GRAPH.functions.find(f=>f.id===ev.target) || GRAPH.functions.find(f=>ev.target.includes(f.label));
+  if (!fn) return;
+  const layerId = fn.layer;
+
+  if (!S.touchedFns[fn.id]) S.touchedFns[fn.id] = [];
+  S.touchedFns[fn.id].push(ev);
+  S.layerCounts[layerId] = (S.layerCounts[layerId]||0)+1;
+
+  pulseLayer(layerId, ev.type);
+  updateBadges();
+  if (S.view==='function'&&S.zoomedLayer===layerId) refreshFnView(layerId);
+
+  // Update header breadcrumb
+  const pill=document.getElementById('h-pill');
+  pill.textContent = ac(ev.type,'label');
+  pill.className = `action-pill ${typeClass(ev.type)} show`;
+  pill.style.cssText = `background:${ac(ev.type,'bg')};color:${ac(ev.type,'color')};border-color:${ac(ev.type,'color')}40;`;
+  const fileEl = document.getElementById('h-file');
+  fileEl.textContent = fn.file + ':' + fn.label;
+  fileEl.classList.add('show');
+  const layerEl = document.getElementById('h-layer');
+  layerEl.textContent = GRAPH.layers.find(l=>l.id===layerId)?.label;
+  layerEl.style.cssText = `color:${lc(layerId,'main')};background:${lc(layerId,'fill')};border-color:${lc(layerId,'main')}40;`;
+  layerEl.classList.add('show');
+
+  // Update bottom summary
+  const sumEl = document.getElementById('bottom-summary');
+  sumEl.innerHTML = `<strong>${fn.label}</strong> — ${ev.reasoning}`;
+  sumEl.classList.add('show');
+
+  // Update current event panel
+  renderCurrentEvent(ev, fn, layerId);
+
+  // Add to history feed
+  setTimeout(()=>addToFeed(ev, fn, layerId), 280);
+}
+
+function unapplyStep(idx) {
+  // Roll back to the state just before idx: re-derive from scratch up to idx-1
+  S.touchedFns = {};
+  S.layerCounts = {};
+
+  for (let i = 0; i < idx; i++) {
+    const ev = EVENTS[i];
+    const fn = GRAPH.functions.find(f=>f.id===ev.target)||GRAPH.functions.find(f=>ev.target.includes(f.label));
+    if (!fn) continue;
+    if (!S.touchedFns[fn.id]) S.touchedFns[fn.id]=[];
+    S.touchedFns[fn.id].push(ev);
+    S.layerCounts[fn.layer]=(S.layerCounts[fn.layer]||0)+1;
+  }
+
+  showLayerView();
+
+  // Rebuild the feed from scratch
+  document.getElementById('trace-feed').innerHTML='';
+  for (let i = idx-1; i >= 0; i--) {
+    const ev=EVENTS[i];
+    const fn=GRAPH.functions.find(f=>f.id===ev.target)||GRAPH.functions.find(f=>ev.target.includes(f.label));
+    if(fn) addToFeedDirect(ev,fn,fn.layer);
+  }
+
+  if (idx===0) {
+    // Back to start state
+    document.getElementById('current-event').innerHTML='<div class="ce-empty" id="ce-placeholder">Step through the trace to see agent actions →</div>';
+    document.getElementById('bottom-summary').classList.remove('show');
+    ['h-pill','h-file','h-layer'].forEach(id=>document.getElementById(id).classList.remove('show'));
+    return;
+  }
+
+  const prevEv=EVENTS[idx-1];
+  const prevFn=GRAPH.functions.find(f=>f.id===prevEv.target)||GRAPH.functions.find(f=>prevEv.target.includes(f.label));
+  if(!prevFn) return;
+  renderCurrentEvent(prevEv,prevFn,prevFn.layer);
+  const pill=document.getElementById('h-pill');
+  pill.textContent=ac(prevEv.type,'label');
+  pill.className=`action-pill ${typeClass(prevEv.type)} show`;
+  pill.style.cssText=`background:${ac(prevEv.type,'bg')};color:${ac(prevEv.type,'color')};border-color:${ac(prevEv.type,'color')}40;`;
+  document.getElementById('h-file').textContent=prevFn.file+':'+prevFn.label;
+  document.getElementById('h-file').classList.add('show');
+  const prevLayerEl=document.getElementById('h-layer');
+  prevLayerEl.textContent=GRAPH.layers.find(l=>l.id===prevFn.layer)?.label;
+  prevLayerEl.style.cssText=`color:${lc(prevFn.layer,'main')};background:${lc(prevFn.layer,'fill')};border-color:${lc(prevFn.layer,'main')}40;`;
+  prevLayerEl.classList.add('show');
+  document.getElementById('bottom-summary').innerHTML=`<strong>${prevFn.label}</strong> — ${prevEv.reasoning}`;
+  document.getElementById('bottom-summary').classList.add('show');
+}
+
+function goNext() {
+  clearTimeout(S.autoTimer);
+  if (S.step >= EVENTS.length-1) return;
+  S.step++;
+  applyStep(S.step);
+  updateProgress();
+  updateControls();
+  if (S.autoplay && S.step < EVENTS.length-1) {
+    S.autoTimer = setTimeout(goNext, 3200);
+  }
+}
+
+function goPrev() {
+  clearTimeout(S.autoTimer);
+  if (S.step < 0) return;
+  unapplyStep(S.step);
+  S.step--;
+  updateProgress();
+  updateControls();
+}
+
+function updateControls() {
+  const next = document.getElementById('next-btn');
+  const prev = document.getElementById('prev-btn');
+  next.disabled = S.step >= EVENTS.length-1;
+  prev.disabled = S.step < 0;
+  document.getElementById('stat-step').textContent = S.step+1;
+  document.getElementById('play-icon').textContent = S.step >= EVENTS.length-1 ? '✓' : '▶';
+}
+
+function updateProgress() {
+  const dots = document.querySelectorAll('.h-prog-dot');
+  dots.forEach((d,i)=>{
+    d.className='h-prog-dot'+(i<=S.step?' done':'')+(i===S.step?' active':'');
+  });
+}
+
+// ─── CURRENT EVENT PANEL ──────────────────────────────
+function renderCurrentEvent(ev, fn, layerId) {
+  const c = lc(layerId,'main'), tc = typeClass(ev.type);
+  const layer = GRAPH.layers.find(l=>l.id===layerId);
+
+  let html = `
+    <div class="ce-header">
+      <span class="ce-pill ${tc}" style="background:${ac(ev.type,'bg')};color:${ac(ev.type,'color')}">${ac(ev.type,'label')}</span>
+      <div>
+        <div class="ce-file">${fn.file}<span style="color:${c};font-weight:500">:${fn.label}</span></div>
+        <span class="ce-layer-tag" style="background:${lc(layerId,'fill')};color:${c};border:1px solid ${c}">${layer?.label}</span>
+      </div>
+    </div>
+    <div class="ce-reasoning">${ev.reasoning}</div>`;
+
+  if (ev.content_before) {
+    const diff = buildDiff(ev.content_before, ev.content_after);
+    const adds = diff.filter(l=>l.type==='add').length;
+    const dels = diff.filter(l=>l.type==='del').length;
+    html += `<div class="ce-diff"><div class="ce-diff-header"><span class="ce-diff-filename">${fn.file}</span><div class="ce-diff-stats">${dels?`<span class="ce-diff-stat-del">−${dels}</span>`:''}${adds?`<span class="ce-diff-stat-add">+${adds}</span>`:''}</div></div>`;
+    let ln = 1;
+    diff.forEach(line=>{
+      const pfx = line.type==='del'?'−':line.type==='add'?'+':'';
+      const text = line.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      html += `<div class="ce-diff-line ${line.type}"><span class="ln">${line.type!=='add'?ln:''}</span><span class="pfx">${pfx}</span><span class="lc">${text}</span></div>`;
+      if (line.type!=='add') ln++;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('current-event').innerHTML = html;
+}
+
+// ─── HISTORY FEED ─────────────────────────────────────
+function addToFeed(ev, fn, layerId) {
+  addToFeedDirect(ev, fn, layerId, true);
+}
+function addToFeedDirect(ev, fn, layerId, animate=false) {
+  const feed=document.getElementById('trace-feed');
+  const c=lc(layerId,'main'), acColor=ac(ev.type,'color');
+  const layer=GRAPH.layers.find(l=>l.id===layerId);
+  const row=document.createElement('div');
+  row.className='tf-row'+(animate?'':' visible');
+  row.innerHTML=`
+    <div class="tf-dot" style="background:${acColor}"></div>
+    <div class="tf-info">
+      <div class="tf-fn">${fn.label}</div>
+      <div class="tf-meta">
+        <span style="color:${c}">${layer?.label}</span>
+        <span style="color:var(--text3)">${fn.file}</span>
+        <span class="tf-ts">${ev.timestamp}</span>
+      </div>
+    </div>`;
+  row.title = ev.reasoning;
+  row.onclick = ()=>{ if(S.view==='layer'){ zoomIntoLayer(layerId); setTimeout(()=>openDetail(fn.id),420); } else if(S.zoomedLayer===layerId) openDetail(fn.id); };
+  feed.insertBefore(row, feed.firstChild);
+  if(animate) requestAnimationFrame(()=>row.classList.add('visible'));
+  while(feed.children.length>30) feed.removeChild(feed.lastChild);
+}
+
+// ─── AUTOPLAY ─────────────────────────────────────────
+function onAutoChange() {
+  S.autoplay = document.getElementById('autoplay-cb').checked;
+  document.getElementById('toggle-pill').classList.toggle('on', S.autoplay);
+  clearTimeout(S.autoTimer);
+  if (S.autoplay && S.step < EVENTS.length-1) {
+    S.autoTimer = setTimeout(goNext, 1000);
+  }
+}
+
+// ─── KEYBOARD ─────────────────────────────────────────
+document.addEventListener('keydown', e=>{
+  if (e.code==='Space'&&!e.target.matches('input,button,textarea')) { e.preventDefault(); goNext(); }
+  if (e.code==='ArrowLeft')  goPrev();
+  if (e.code==='ArrowRight') goNext();
+  if (e.code==='Escape') closeDetail();
+});
+
+// ─── WEBSOCKET HOOK ───────────────────────────────────
+// Wire teammate's MCP server: ?ws=ws://localhost:PORT
+function connectWebSocket(url) {
+  const ws = new WebSocket(url);
+  ws.onmessage = msg => {
+    try {
+      const ev = JSON.parse(msg.data);
+      ev.timestamp = new Date().toLocaleTimeString('en-US',{hour12:false});
+      EVENTS.push(ev);
+      document.getElementById('stat-total').textContent = EVENTS.length;
+      buildProgressDots();
+    } catch(e){}
+  };
+}
+
+// ─── BOOT ─────────────────────────────────────────────
+function buildProgressDots() {
+  const container = document.getElementById('h-progress');
+  container.innerHTML='';
+  EVENTS.forEach((_,i)=>{
+    const d=document.createElement('div'); d.className='h-prog-dot'; container.appendChild(d);
+  });
+  updateProgress();
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  showLayerView();
+  buildProgressDots();
+  updateControls();
+  document.getElementById('stat-step').textContent='0';
+
+  const ws=new URLSearchParams(location.search).get('ws');
+  if(ws) connectWebSocket(ws);
+});
+</script>
+</body>
+</html>
