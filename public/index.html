@@ -3,45 +3,52 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>buildtutor lessons</title>
+    <title>buildtutor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/styles.css" />
     <script defer src="/app.js"></script>
   </head>
   <body>
-    <div class="shell">
-      <header class="topbar">
-        <div>
-          <div class="eyebrow">buildtutor</div>
-          <h1>Short lessons</h1>
+    <header id="topbar">
+      <div class="brand">
+        <div class="brand-logo" id="brandLogo">B</div>
+        <div class="brand-copy">
+          <div class="brand-name" id="brandName">buildtutor</div>
+          <div class="brand-sub" id="brandSub">watching your codebase</div>
         </div>
-        <div class="status" id="connectionStatus">connecting</div>
-      </header>
+      </div>
+      <div class="conn-status">
+        <div class="conn-dot" id="connDot"></div>
+        <span class="conn-label" id="connLabel">connecting</span>
+      </div>
+    </header>
 
-      <main class="grid">
-        <section class="panel panel-wide">
-          <div class="panel-head">
-            <h2>Lesson</h2>
-            <span id="projectName">project</span>
-          </div>
-          <div id="latestLesson" class="stack"></div>
-        </section>
+    <div id="viewport">
+      <div class="hint-toast" id="hintToast">
+        Waiting for your first code change &mdash; call
+        <span class="mono">report_project_update</span> from your agent.
+      </div>
+      <div id="mainContent"></div>
+    </div>
 
-        <section class="panel">
-          <div class="panel-head">
-            <h2>MCQ</h2>
-            <span id="quizCount">0</span>
-          </div>
-          <div id="quizList" class="stack"></div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <h2>Updates</h2>
-            <span id="updateCount">0</span>
-          </div>
-          <div id="updateList" class="stack"></div>
-        </section>
-      </main>
+    <div id="timelineBar">
+      <div id="timelineMeta"></div>
+      <div id="timelineTrack">
+        <div id="timelineDots"></div>
+        <div class="tl-arrows">
+          <button class="tl-arrow" id="tlPrev" title="Previous update">
+            &#9664;
+          </button>
+          <button class="tl-arrow" id="tlNext" title="Next update">
+            &#9654;
+          </button>
+        </div>
+      </div>
     </div>
   </body>
 </html>

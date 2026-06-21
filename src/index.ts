@@ -74,7 +74,11 @@ const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
 const TUTOR_MODEL = process.env.BUILDTUTOR_MODEL ?? "claude-sonnet-4-6";
 const WEB_PORT = Number(process.env.BUILDTUTOR_WEB_PORT ?? "3333");
 const WEB_HOST = process.env.BUILDTUTOR_WEB_HOST ?? "127.0.0.1";
-const LOCK_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".buildtutor.lock");
+const LOCK_FILE = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  ".buildtutor.lock",
+);
 
 const state: AppState = {
   projectName: "buildtutor",
@@ -127,7 +131,11 @@ async function clearStartupLock() {
   await unlink(LOCK_FILE).catch(() => {});
 }
 
-function jsonResponse(res: ServerResponse, statusCode: number, payload: unknown) {
+function jsonResponse(
+  res: ServerResponse,
+  statusCode: number,
+  payload: unknown,
+) {
   const body = JSON.stringify(payload, null, 2);
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
@@ -137,7 +145,12 @@ function jsonResponse(res: ServerResponse, statusCode: number, payload: unknown)
   res.end(body);
 }
 
-function textResponse(res: ServerResponse, statusCode: number, body: string, contentType = "text/plain; charset=utf-8") {
+function textResponse(
+  res: ServerResponse,
+  statusCode: number,
+  body: string,
+  contentType = "text/plain; charset=utf-8",
+) {
   res.writeHead(statusCode, {
     "Content-Type": contentType,
     "Cache-Control": "no-store",
@@ -155,12 +168,18 @@ function readBody(req: IncomingMessage): Promise<string> {
 }
 
 function stripCodeFences(text: string) {
-  return text.replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+  return text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
 }
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  return value.filter(
+    (item): item is string =>
+      typeof item === "string" && item.trim().length > 0,
+  );
 }
 
 function shorten(text: string, maxLength: number) {
@@ -177,7 +196,8 @@ function normalizeOptions(value: unknown): QuizOption[] {
   return value
     .map((item, index) => ({
       label: choiceLabel(index),
-      text: typeof item === "string" && item.trim().length > 0 ? item.trim() : "",
+      text:
+        typeof item === "string" && item.trim().length > 0 ? item.trim() : "",
     }))
     .filter((item) => item.text.length > 0)
     .slice(0, 4);
@@ -186,7 +206,10 @@ function normalizeOptions(value: unknown): QuizOption[] {
 function normalizeSection(value: unknown, heading: string): LessonSection {
   return {
     heading,
-    body: typeof value === "string" && value.trim().length > 0 ? value.trim() : "No detail was generated.",
+    body:
+      typeof value === "string" && value.trim().length > 0
+        ? value.trim()
+        : "No detail was generated.",
   };
 }
 
@@ -202,13 +225,15 @@ function fallbackLesson(update: ProjectUpdate): Lesson {
     id: randomUUID(),
     updateId: update.id,
     title: shorten(`Infrastructure lesson: ${update.summary}`, 54),
-    overview: shorten(update.rationale || "A major infrastructure change was published.", 84),
+    overview: shorten(
+      update.rationale || "A major infrastructure change was published.",
+      84,
+    ),
     sections,
-    operationalNotes: [
-      "Verify the runtime boundary.",
-    ],
+    operationalNotes: ["Verify the runtime boundary."],
     quizRecommended: true,
-    quizPrompt: "What is the main infrastructure change, and what should an engineer verify next?",
+    quizPrompt:
+      "What is the main infrastructure change, and what should an engineer verify next?",
     createdAt: nowIso(),
   };
 }
@@ -216,17 +241,31 @@ function fallbackLesson(update: ProjectUpdate): Lesson {
 function parseLessonDraft(text: string, update: ProjectUpdate): Lesson {
   try {
     const parsed = JSON.parse(stripCodeFences(text)) as Record<string, unknown>;
-    const title = shorten(typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim() : `Infrastructure lesson: ${update.summary}`, 54);
+    const title = shorten(
+      typeof parsed.title === "string" && parsed.title.trim()
+        ? parsed.title.trim()
+        : `Infrastructure lesson: ${update.summary}`,
+      54,
+    );
     const overview = shorten(
-      typeof parsed.overview === "string" && parsed.overview.trim() ? parsed.overview.trim() : "A major change was published and the front end captured the infrastructure-level explanation.",
-      84
+      typeof parsed.overview === "string" && parsed.overview.trim()
+        ? parsed.overview.trim()
+        : "A major change was published and the front end captured the infrastructure-level explanation.",
+      84,
     );
     const sections = [
-      normalizeSection(parsed.whyItMatters ?? parsed.whatChanged, "Why it matters"),
+      normalizeSection(
+        parsed.whyItMatters ?? parsed.whatChanged,
+        "Why it matters",
+      ),
     ];
-    const operationalNotes = asStringArray(parsed.operationalBullets).slice(0, 1).map((note) => shorten(note, 60));
+    const operationalNotes = asStringArray(parsed.operationalBullets)
+      .slice(0, 1)
+      .map((note) => shorten(note, 60));
     const finalOperationalNotes =
-      operationalNotes.length > 0 ? operationalNotes : ["Verify the runtime boundary."];
+      operationalNotes.length > 0
+        ? operationalNotes
+        : ["Verify the runtime boundary."];
 
     return {
       id: randomUUID(),
@@ -240,7 +279,7 @@ function parseLessonDraft(text: string, update: ProjectUpdate): Lesson {
         typeof parsed.quizPrompt === "string" && parsed.quizPrompt.trim()
           ? parsed.quizPrompt.trim()
           : "What changed, and what should an engineer verify?",
-        72
+        72,
       ),
       createdAt: nowIso(),
     };
@@ -290,7 +329,8 @@ async function generateLesson(update: ProjectUpdate): Promise<Lesson> {
       messages: [{ role: "user", content: renderLessonPrompt(update) }],
     });
 
-    const text = response.content[0]?.type === "text" ? response.content[0].text : "";
+    const text =
+      response.content[0]?.type === "text" ? response.content[0].text : "";
     if (!text.trim()) {
       return fallbackLesson(update);
     }
@@ -330,11 +370,19 @@ type GeneratedQuiz = {
   correctIndex: number;
 };
 
-async function generateQuizForLesson(lesson: Lesson, priorAttempts = 1): Promise<GeneratedQuiz> {
+async function generateQuizForLesson(
+  lesson: Lesson,
+  priorAttempts = 1,
+): Promise<GeneratedQuiz> {
   if (!lesson.quizRecommended) {
     return {
       question: `No quiz needed for "${lesson.title}".`,
-      options: ["No quiz was recommended.", "A quiz is required.", "The lesson was not published.", "The summary was hidden."],
+      options: [
+        "No quiz was recommended.",
+        "A quiz is required.",
+        "The lesson was not published.",
+        "The summary was hidden.",
+      ],
       correctIndex: 0,
     };
   }
@@ -356,14 +404,20 @@ async function generateQuizForLesson(lesson: Lesson, priorAttempts = 1): Promise
         },
       ],
     });
-    const text = response.content[0]?.type === "text" ? response.content[0].text : "";
+    const text =
+      response.content[0]?.type === "text" ? response.content[0].text : "";
     const parsed = JSON.parse(stripCodeFences(text)) as Record<string, unknown>;
     const question = shorten(
-      typeof parsed.question === "string" && parsed.question.trim() ? parsed.question.trim() : lesson.quizPrompt || fallbackQuiz(lesson).question,
-      120
+      typeof parsed.question === "string" && parsed.question.trim()
+        ? parsed.question.trim()
+        : lesson.quizPrompt || fallbackQuiz(lesson).question,
+      120,
     );
-    const options = normalizeOptions(parsed.options).map((option) => shorten(option.text, 88));
-    const correctIndexRaw = typeof parsed.correctIndex === "number" ? parsed.correctIndex : 0;
+    const options = normalizeOptions(parsed.options).map((option) =>
+      shorten(option.text, 88),
+    );
+    const correctIndexRaw =
+      typeof parsed.correctIndex === "number" ? parsed.correctIndex : 0;
     const correctIndex = Math.max(0, Math.min(3, Math.trunc(correctIndexRaw)));
     if (options.length === 4) {
       return { question, options, correctIndex };
@@ -376,15 +430,29 @@ async function generateQuizForLesson(lesson: Lesson, priorAttempts = 1): Promise
 }
 
 function latestQuizForLesson(lessonId: string) {
-  return state.quizzes.find((quiz) => quiz.lessonId === lessonId && quiz.selectedIndex === null) ?? null;
+  return (
+    state.quizzes.find(
+      (quiz) => quiz.lessonId === lessonId && quiz.selectedIndex === null,
+    ) ?? null
+  );
 }
 
-function serveStatic(rootDir: string, req: IncomingMessage, res: ServerResponse) {
-  const requestUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-  const pathname = requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname;
+function serveStatic(
+  rootDir: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+) {
+  const requestUrl = new URL(
+    req.url ?? "/",
+    `http://${req.headers.host ?? "localhost"}`,
+  );
+  const pathname =
+    requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname;
   const normalizedPath = pathname.replace(/^\/+/, "");
   const filePath = path.resolve(rootDir, normalizedPath);
-  const rootPrefix = rootDir.endsWith(path.sep) ? rootDir : `${rootDir}${path.sep}`;
+  const rootPrefix = rootDir.endsWith(path.sep)
+    ? rootDir
+    : `${rootDir}${path.sep}`;
 
   if (filePath !== rootDir && !filePath.startsWith(rootPrefix)) {
     textResponse(res, 403, "Forbidden");
@@ -411,8 +479,15 @@ function serveStatic(rootDir: string, req: IncomingMessage, res: ServerResponse)
     .catch(() => textResponse(res, 404, "Not found"));
 }
 
-async function handleApiRequest(req: IncomingMessage, res: ServerResponse, rootDir: string) {
-  const requestUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+async function handleApiRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  rootDir: string,
+) {
+  const requestUrl = new URL(
+    req.url ?? "/",
+    `http://${req.headers.host ?? "localhost"}`,
+  );
   const pathname = requestUrl.pathname;
 
   if (req.method === "GET" && pathname === "/api/state") {
@@ -460,11 +535,20 @@ async function handleApiRequest(req: IncomingMessage, res: ServerResponse, rootD
       const payload = JSON.parse(body) as Partial<ProjectUpdate>;
       const update: ProjectUpdate = {
         id: randomUUID(),
-        summary: typeof payload.summary === "string" ? payload.summary : "Untitled update",
-        changedFiles: Array.isArray(payload.changedFiles) ? asStringArray(payload.changedFiles) : [],
-        infrastructureImpact: typeof payload.infrastructureImpact === "string" ? payload.infrastructureImpact : "",
+        summary:
+          typeof payload.summary === "string"
+            ? payload.summary
+            : "Untitled update",
+        changedFiles: Array.isArray(payload.changedFiles)
+          ? asStringArray(payload.changedFiles)
+          : [],
+        infrastructureImpact:
+          typeof payload.infrastructureImpact === "string"
+            ? payload.infrastructureImpact
+            : "",
         majorChange: Boolean(payload.majorChange),
-        rationale: typeof payload.rationale === "string" ? payload.rationale : "",
+        rationale:
+          typeof payload.rationale === "string" ? payload.rationale : "",
         createdAt: nowIso(),
         lessonId: null,
       };
@@ -478,12 +562,67 @@ async function handleApiRequest(req: IncomingMessage, res: ServerResponse, rootD
     return;
   }
 
+  if (req.method === "POST" && pathname === "/api/quiz/answer") {
+    const body = await readBody(req);
+    try {
+      const payload = JSON.parse(body) as {
+        lessonId?: unknown;
+        selectedIndex?: unknown;
+      };
+      const lessonId =
+        typeof payload.lessonId === "string" ? payload.lessonId.trim() : "";
+      const selectedIndex =
+        typeof payload.selectedIndex === "number"
+          ? Math.trunc(payload.selectedIndex)
+          : -1;
+      if (!lessonId || selectedIndex < 0 || selectedIndex > 3) {
+        jsonResponse(res, 400, {
+          ok: false,
+          error: "Invalid lessonId or selectedIndex.",
+        });
+        return;
+      }
+      const lesson = getLessonById(lessonId);
+      if (!lesson) {
+        jsonResponse(res, 404, { ok: false, error: "Lesson not found." });
+        return;
+      }
+      const pendingQuiz = latestQuizForLesson(lessonId);
+      if (!pendingQuiz || pendingQuiz.selectedIndex !== null) {
+        jsonResponse(res, 409, {
+          ok: false,
+          error: "No pending quiz for that lesson.",
+        });
+        return;
+      }
+      const passes = selectedIndex === pendingQuiz.correctIndex;
+      pendingQuiz.selectedIndex = selectedIndex;
+      pendingQuiz.passes = passes;
+      pendingQuiz.gap = passes
+        ? "none"
+        : `That choice missed the infrastructure effect. ${choiceLabel(pendingQuiz.correctIndex)} is the better match for this lesson.`;
+      emitEvent({ type: "quiz", payload: pendingQuiz });
+      jsonResponse(res, 200, {
+        ok: true,
+        passes,
+        gap: pendingQuiz.gap,
+        quiz: pendingQuiz,
+      });
+    } catch {
+      jsonResponse(res, 400, { ok: false, error: "Invalid JSON payload." });
+    }
+    return;
+  }
+
   if (req.method === "GET" && pathname === "/") {
     serveStatic(rootDir, req, res);
     return;
   }
 
-  if (req.method === "GET" && (pathname === "/app.js" || pathname === "/styles.css")) {
+  if (
+    req.method === "GET" &&
+    (pathname === "/app.js" || pathname === "/styles.css")
+  ) {
     serveStatic(rootDir, req, res);
     return;
   }
@@ -492,7 +631,11 @@ async function handleApiRequest(req: IncomingMessage, res: ServerResponse, rootD
 }
 
 async function startWebServer() {
-  const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
+  const rootDir = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "public",
+  );
   const serverInstance = createServer((req, res) => {
     handleApiRequest(req, res, rootDir).catch((error) => {
       console.error("Web server request failed:", error);
@@ -536,11 +679,27 @@ async function startWebServer() {
 }
 
 const reportProjectUpdateSchema = {
-  summary: z.string().min(3).describe("A concise summary of the major project update"),
-  majorChange: z.boolean().describe("Whether the agent has detected a major project change"),
-  changedFiles: z.array(z.string()).optional().describe("Files most directly associated with the update"),
-  infrastructureImpact: z.string().optional().describe("How the change affects runtime, deployment, configuration, or boundaries"),
-  rationale: z.string().optional().describe("Why the agent considers this a major change"),
+  summary: z
+    .string()
+    .min(3)
+    .describe("A concise summary of the major project update"),
+  majorChange: z
+    .boolean()
+    .describe("Whether the agent has detected a major project change"),
+  changedFiles: z
+    .array(z.string())
+    .optional()
+    .describe("Files most directly associated with the update"),
+  infrastructureImpact: z
+    .string()
+    .optional()
+    .describe(
+      "How the change affects runtime, deployment, configuration, or boundaries",
+    ),
+  rationale: z
+    .string()
+    .optional()
+    .describe("Why the agent considers this a major change"),
 };
 
 server.registerTool(
@@ -550,7 +709,13 @@ server.registerTool(
       "Publish a major project update to the web front end. Call this only after the agent detects a significant feature, infrastructure, or workflow change. The server turns that update into a lesson for the website.",
     inputSchema: reportProjectUpdateSchema,
   },
-  async ({ summary, majorChange, changedFiles = [], infrastructureImpact = "", rationale = "" }) => {
+  async ({
+    summary,
+    majorChange,
+    changedFiles = [],
+    infrastructureImpact = "",
+    rationale = "",
+  }) => {
     const update: ProjectUpdate = {
       id: randomUUID(),
       summary: shorten(summary, 110),
@@ -584,11 +749,13 @@ server.registerTool(
     const text = [
       `Lesson published: ${lesson.title}.`,
       `Dashboard: ${state.webBaseUrl || "starting..."}`,
-      lesson.quizRecommended ? `Follow-up quiz recommended.` : `No quiz recommended.`,
+      lesson.quizRecommended
+        ? `Follow-up quiz recommended.`
+        : `No quiz recommended.`,
     ].join("\n");
 
     return { content: [{ type: "text" as const, text }] };
-  }
+  },
 );
 
 const QUIZ_SYSTEM_PROMPT = `You write one short, open-ended question for an already-published infrastructure lesson.
@@ -602,13 +769,23 @@ server.registerTool(
       "Generate a multiple-choice quiz only after a lesson has been published, and only if the lesson recommends a quiz. The quiz should check whether the engineer understands the infrastructure-level change.",
     inputSchema: {
       lessonId: z.string().describe("The lesson to quiz"),
-      priorAttempts: z.number().optional().describe("How many times this lesson has already been quizzed"),
+      priorAttempts: z
+        .number()
+        .optional()
+        .describe("How many times this lesson has already been quizzed"),
     },
   },
   async ({ lessonId, priorAttempts = 1 }) => {
     const lesson = getLessonById(lessonId);
     if (!lesson) {
-      return { content: [{ type: "text" as const, text: "No lesson was found for that lessonId." }] };
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "No lesson was found for that lessonId.",
+          },
+        ],
+      };
     }
 
     if (!lesson.quizRecommended) {
@@ -627,7 +804,10 @@ server.registerTool(
       id: randomUUID(),
       lessonId,
       question: draft.question,
-      options: draft.options.map((text, index) => ({ label: choiceLabel(index), text })),
+      options: draft.options.map((text, index) => ({
+        label: choiceLabel(index),
+        text,
+      })),
       correctIndex: draft.correctIndex,
       selectedIndex: null,
       gap: "",
@@ -639,12 +819,14 @@ server.registerTool(
 
     const text = [
       draft.question,
-      ...draft.options.map((option, index) => `${choiceLabel(index)}. ${option}`),
+      ...draft.options.map(
+        (option, index) => `${choiceLabel(index)}. ${option}`,
+      ),
       "Reply with the choice letter, like A or C.",
     ].join("\n");
 
     return { content: [{ type: "text" as const, text }] };
-  }
+  },
 );
 
 server.registerTool(
@@ -654,18 +836,37 @@ server.registerTool(
       "Grade a learner's answer to a quiz that followed a published infrastructure lesson. Do not use this before a lesson exists.",
     inputSchema: {
       lessonId: z.string(),
-      selectedIndex: z.number().int().min(0).max(3).describe("The chosen answer index, where 0 = A, 1 = B, 2 = C, 3 = D"),
+      selectedIndex: z
+        .number()
+        .int()
+        .min(0)
+        .max(3)
+        .describe("The chosen answer index, where 0 = A, 1 = B, 2 = C, 3 = D"),
     },
   },
   async ({ lessonId, selectedIndex }) => {
     const lesson = getLessonById(lessonId);
     if (!lesson) {
-      return { content: [{ type: "text" as const, text: "No lesson was found for that lessonId." }] };
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "No lesson was found for that lessonId.",
+          },
+        ],
+      };
     }
 
     const pendingQuiz = latestQuizForLesson(lessonId);
     if (!pendingQuiz) {
-      return { content: [{ type: "text" as const, text: "No quiz was found for that lessonId." }] };
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "No quiz was found for that lessonId.",
+          },
+        ],
+      };
     }
 
     const passes = selectedIndex === pendingQuiz.correctIndex;
@@ -689,7 +890,7 @@ server.registerTool(
         },
       ],
     };
-  }
+  },
 );
 
 server.registerTool(
@@ -705,12 +906,19 @@ server.registerTool(
   async ({ lessonId, gap }) => {
     const lesson = getLessonById(lessonId);
     if (!lesson) {
-      return { content: [{ type: "text" as const, text: "No lesson was found for that lessonId." }] };
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "No lesson was found for that lessonId.",
+          },
+        ],
+      };
     }
 
     const text = await anthropicExplanation(lesson, gap);
     return { content: [{ type: "text" as const, text }] };
-  }
+  },
 );
 
 async function anthropicExplanation(lesson: Lesson, gap: string) {
@@ -731,7 +939,8 @@ async function anthropicExplanation(lesson: Lesson, gap: string) {
         },
       ],
     });
-    const text = response.content[0]?.type === "text" ? response.content[0].text : "";
+    const text =
+      response.content[0]?.type === "text" ? response.content[0].text : "";
     return text.trim() || `Revisit the lesson gap: ${gap}`;
   } catch (error) {
     console.error("Failed to explain concept:", error);
@@ -751,20 +960,22 @@ server.registerTool(
             id: z.string(),
             title: z.string(),
             quizRecommended: z.boolean(),
-          })
+          }),
         )
         .describe("The lessons that have been published so far"),
     },
   },
   async ({ lessons }) => {
     const total = lessons.length;
-    const withQuizzes = lessons.filter((lesson) => lesson.quizRecommended).length;
+    const withQuizzes = lessons.filter(
+      (lesson) => lesson.quizRecommended,
+    ).length;
     const text =
       total === 0
         ? "No major lessons have been published yet."
         : `Published ${total} infrastructure lesson${total === 1 ? "" : "s"}.\n${withQuizzes} of them recommend follow-up quiz checks.\nThe front end is now the source of truth for how the project's infrastructure evolves over time.`;
     return { content: [{ type: "text" as const, text }] };
-  }
+  },
 );
 
 server.registerTool(
@@ -779,7 +990,7 @@ server.registerTool(
       ? `Web front end: ${state.webBaseUrl}`
       : `Web front end: starting on port ${WEB_PORT}`;
     return { content: [{ type: "text" as const, text }] };
-  }
+  },
 );
 
 server.registerTool(
@@ -788,13 +999,15 @@ server.registerTool(
     description:
       "Demo-only flavor tool. Kept for compatibility, but it has no effect on the web lesson flow.",
     inputSchema: {
-      wrongAnswers: z.number().describe("How many times this chunk has been failed"),
+      wrongAnswers: z
+        .number()
+        .describe("How many times this chunk has been failed"),
     },
   },
   async ({ wrongAnswers }) => {
     const text = `Demo-only: ${wrongAnswers} failed attempt${wrongAnswers === 1 ? "" : "s"}. Nothing was sent.`;
     return { content: [{ type: "text" as const, text }] };
-  }
+  },
 );
 
 async function main() {
