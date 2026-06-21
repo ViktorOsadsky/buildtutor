@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "buildtutor": {
+      "command": "node",
+      "args": ["/absolute/path/to/buildtutor-mcp/build/index.js"],
+      "env": {
+        "ANTHROPIC_API_KEY": "sk-ant-your-key-here"
+      }
+    }
+  }
+}

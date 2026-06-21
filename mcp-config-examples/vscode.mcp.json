@@ -1,0 +1,15 @@
+// Save as .vscode/mcp.json in the target project.
+// Verify the "servers" vs "mcpServers" key against current VS Code docs —
+// this is the schema as of mid-2026 but the AI extensibility APIs move fast.
+{
+  "servers": {
+    "buildtutor": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/absolute/path/to/buildtutor-mcp/build/index.js"],
+      "env": {
+        "ANTHROPIC_API_KEY": "sk-ant-your-key-here"
+      }
+    }
+  }
+}

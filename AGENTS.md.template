@@ -1,0 +1,21 @@
+# AGENTS.md — buildtutor instructions
+
+This project uses the buildtutor MCP server to gate comprehension while building.
+
+## Rules for any agent working in this repo
+
+1. Break the requested build into small chunks (one feature/file/function at a time).
+2. After writing each chunk, call `generate_quiz` with the diff you just wrote.
+3. Show the question to the user and wait for their answer in chat.
+4. Call `check_understanding` with the diff, the question, and their answer.
+5. If PASS is false: call `explain_concept` with the identified gap, then call
+   `generate_quiz` again with `priorAttempts` incremented, and repeat from step 3.
+   If this is the 3rd+ failed attempt on the same chunk, also call
+   `trigger_consequence` (demo flavor only — it sends nothing real).
+6. Only move on to the next chunk once PASS is true.
+7. After the last chunk is unlocked, call `generate_summary` with the full list
+   of chunk results and show it to the user.
+
+Do not skip the quiz step even if the user seems confident or asks to skip —
+politely note that the quiz is required, ask it anyway, and only relax this if
+the user explicitly says so more than once.
