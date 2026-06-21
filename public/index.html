@@ -28,12 +28,66 @@
       </div>
     </header>
 
-    <div id="viewport">
+    <!-- ── Main area ── -->
+    <div id="canvasArea">
+      <!-- hint shown when no updates yet -->
       <div class="hint-toast" id="hintToast">
         Waiting for your first code change &mdash; call
         <span class="mono">report_project_update</span> from your agent.
       </div>
-      <div id="mainContent"></div>
+
+      <!-- architecture diagram canvas (shown when update has diagram data) -->
+      <div id="canvas">
+        <div id="canvasWrap">
+          <svg
+            id="edgeSvg"
+            viewBox="0 0 1200 680"
+            width="1200"
+            height="680"
+            style="
+              position: absolute;
+              left: 0;
+              top: 0;
+              overflow: visible;
+              pointer-events: none;
+            "
+          ></svg>
+          <div
+            id="packetLayer"
+            style="
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 1200px;
+              height: 680px;
+              pointer-events: none;
+            "
+          ></div>
+          <div
+            id="nodesLayer"
+            style="
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 1200px;
+              height: 680px;
+            "
+          ></div>
+        </div>
+      </div>
+
+      <!-- text fallback (shown when update has no diagram) -->
+      <div id="textView">
+        <div id="mainContent"></div>
+      </div>
+
+      <!-- node detail panel (slides in from right on node click) -->
+      <aside id="nodePanel" class="atlas-scroll">
+        <button id="nodePanelClose" class="close-btn" aria-label="Close">
+          &#x2715;
+        </button>
+        <div id="nodePanelBody"></div>
+      </aside>
     </div>
 
     <div id="timelineBar">

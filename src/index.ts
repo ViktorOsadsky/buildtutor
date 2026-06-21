@@ -31,6 +31,22 @@ type Lesson = {
   createdAt: string;
 };
 
+type DiagramNode = {
+  id: string;
+  name: string;
+  abbr: string;
+  role: string;
+  cat: string;
+  cx: number;
+  cy: number;
+  blurb: string;
+};
+
+type Diagram = {
+  nodes: DiagramNode[];
+  edges: string[];
+};
+
 type ProjectUpdate = {
   id: string;
   summary: string;
@@ -40,6 +56,7 @@ type ProjectUpdate = {
   rationale: string;
   createdAt: string;
   lessonId: string | null;
+  diagram?: Diagram;
 };
 
 type Quiz = {
@@ -533,6 +550,9 @@ async function handleApiRequest(
     const body = await readBody(req);
     try {
       const payload = JSON.parse(body) as Partial<ProjectUpdate>;
+      const rawDiagram = payload.diagram as
+        | { nodes?: unknown[]; edges?: unknown[] }
+        | undefined;
       const update: ProjectUpdate = {
         id: randomUUID(),
         summary:
@@ -551,10 +571,49 @@ async function handleApiRequest(
           typeof payload.rationale === "string" ? payload.rationale : "",
         createdAt: nowIso(),
         lessonId: null,
+        diagram:
+          rawDiagram && Array.isArray(rawDiagram.nodes)
+            ? {
+                nodes: (rawDiagram.nodes as Record<string, unknown>[])
+                  .map((n) => ({
+                    id: String(n.id ?? ""),
+                    name: String(n.name ?? ""),
+                    abbr: String(n.abbr ?? "")
+                      .slice(0, 6)
+                      .toUpperCase(),
+                    role: String(n.role ?? ""),
+                    cat: String(n.cat ?? "service"),
+                    cx: Math.max(0, Math.min(1200, Number(n.cx) || 0)),
+                    cy: Math.max(0, Math.min(680, Number(n.cy) || 0)),
+                    blurb: String(n.blurb ?? ""),
+                  }))
+                  .filter((n) => n.id && n.name),
+                edges: Array.isArray(rawDiagram.edges)
+                  ? (rawDiagram.edges as unknown[]).filter(
+                      (e): e is string =>
+                        typeof e === "string" && /^[\w-]+\|[\w-]+$/.test(e),
+                    )
+                  : [],
+              }
+            : undefined,
       };
 
       state.updates.unshift(update);
       emitEvent({ type: "update", payload: update });
+
+      // Kick off async lesson generation (same as MCP tool handler)
+      if (update.majorChange) {
+        generateLesson(update)
+          .then((lesson) => {
+            update.lessonId = lesson.id;
+            state.lessons.unshift(lesson);
+            emitEvent({ type: "lesson", payload: lesson });
+          })
+          .catch((err) => {
+            console.error("Lesson generation failed:", err);
+          });
+      }
+
       jsonResponse(res, 200, { ok: true, update });
     } catch (error) {
       jsonResponse(res, 400, { ok: false, error: "Invalid JSON payload." });
@@ -678,6 +737,25 @@ async function startWebServer() {
   throw new Error("Unable to bind a web port for the front end.");
 }
 
+const diagramNodeSchema = z.object({
+  id: z.string().describe("Unique identifier, e.g. 'auth', 'db', 'cache'"),
+  name: z.string().describe("Full display name, e.g. 'Auth Service'"),
+  abbr: z
+    .string()
+    .max(6)
+    .describe("Short abbreviation shown on the node, e.g. 'AUTH'"),
+  role: z.string().describe("One-line role, e.g. 'Identity & sessions'"),
+  cat: z
+    .enum(["client", "edge", "service", "security", "data"])
+    .describe("Category for color coding"),
+  cx: z.number().describe("X position on 1200x680 canvas"),
+  cy: z.number().describe("Y position on 1200x680 canvas"),
+  blurb: z
+    .string()
+    .optional()
+    .describe("One or two sentences explaining what this component does"),
+});
+
 const reportProjectUpdateSchema = {
   summary: z
     .string()
@@ -700,6 +778,22 @@ const reportProjectUpdateSchema = {
     .string()
     .optional()
     .describe("Why the agent considers this a major change"),
+  diagram: z
+    .object({
+      nodes: z.array(diagramNodeSchema),
+      edges: z
+        .array(z.string())
+        .describe(
+          "Connections as 'fromId|toId' strings, e.g. ['client|gateway', 'gateway|auth']",
+        ),
+    })
+    .optional()
+    .describe(
+      "Architecture diagram snapshot for this version. " +
+        "Position nodes on a 1200\u00d7680 canvas: clients x\u224890, edge/gateway x\u2248350, " +
+        "services x\u2248580-820, data stores x\u22481060. " +
+        "Vary y to separate rows (top\u2248120, mid\u2248320, lower\u2248470, bottom\u2248600).",
+    ),
 };
 
 server.registerTool(
@@ -715,6 +809,7 @@ server.registerTool(
     changedFiles = [],
     infrastructureImpact = "",
     rationale = "",
+    diagram,
   }) => {
     const update: ProjectUpdate = {
       id: randomUUID(),
@@ -725,6 +820,21 @@ server.registerTool(
       rationale: shorten(rationale, 130),
       createdAt: nowIso(),
       lessonId: null,
+      diagram: diagram
+        ? {
+            nodes: diagram.nodes.map((n) => ({
+              id: n.id,
+              name: n.name,
+              abbr: n.abbr.slice(0, 6).toUpperCase(),
+              role: n.role,
+              cat: n.cat,
+              cx: Math.max(0, Math.min(1200, n.cx)),
+              cy: Math.max(0, Math.min(680, n.cy)),
+              blurb: n.blurb ?? "",
+            })),
+            edges: diagram.edges.filter((e) => /^[\w-]+\|[\w-]+$/.test(e)),
+          }
+        : undefined,
     };
 
     state.updates.unshift(update);
