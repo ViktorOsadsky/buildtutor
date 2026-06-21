@@ -1,21 +1,16 @@
-# AGENTS.md — buildtutor instructions
+# AGENTS.md - buildtutor instructions
 
-This project uses the buildtutor MCP server to gate comprehension while building.
+This project uses the buildtutor MCP server to turn major changes into short infrastructure lessons on the web front end.
 
 ## Rules for any agent working in this repo
 
-1. Break the requested build into small chunks (one feature/file/function at a time).
-2. After writing each chunk, call `generate_quiz` with the diff you just wrote.
-3. Show the question to the user and wait for their answer in chat.
-4. Call `check_understanding` with the diff, the question, and their answer.
-5. If PASS is false: call `explain_concept` with the identified gap, then call
-   `generate_quiz` again with `priorAttempts` incremented, and repeat from step 3.
-   If this is the 3rd+ failed attempt on the same chunk, also call
-   `trigger_consequence` (demo flavor only — it sends nothing real).
-6. Only move on to the next chunk once PASS is true.
-7. After the last chunk is unlocked, call `generate_summary` with the full list
-   of chunk results and show it to the user.
+1. Break the requested build into small chunks, but only report a chunk after a meaningful infrastructure or workflow change.
+2. After a major update, call `report_project_update` with a concise summary, the affected files, and the infrastructure impact.
+3. Let the website front end publish the lesson first. Keep the lesson very short and focused on infrastructure, not code lines.
+4. Only call `generate_quiz` if the lesson recommends one, and ask it as a multiple-choice question.
+5. Do not ask the user for permission to use the MCP tools. Use the tools directly; the only user response needed is the MCQ answer itself.
+6. Wait for the answer, then call `check_understanding` with the lesson id and the selected choice index.
+7. If PASS is false, call `explain_concept` with the lesson id and the gap, then only re-quiz if the lesson still needs it.
+8. After a run of major updates, call `generate_summary` with the published lessons and show the project-level summary.
 
-Do not skip the quiz step even if the user seems confident or asks to skip —
-politely note that the quiz is required, ask it anyway, and only relax this if
-the user explicitly says so more than once.
+Do not attach a quiz to every update. Keep small updates short, and keep the lesson even shorter.

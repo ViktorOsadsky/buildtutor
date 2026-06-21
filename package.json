@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node build/index.js",
+    "start": "node scripts/launch.mjs",
     "dev": "tsx src/index.ts",
     "inspect": "npx @modelcontextprotocol/inspector node build/index.js"
   },

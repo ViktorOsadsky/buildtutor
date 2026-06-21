@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>buildtutor lessons</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script defer src="/app.js"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">buildtutor</div>
+          <h1>Short lessons</h1>
+        </div>
+        <div class="status" id="connectionStatus">connecting</div>
+      </header>
+
+      <main class="grid">
+        <section class="panel panel-wide">
+          <div class="panel-head">
+            <h2>Lesson</h2>
+            <span id="projectName">project</span>
+          </div>
+          <div id="latestLesson" class="stack"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>MCQ</h2>
+            <span id="quizCount">0</span>
+          </div>
+          <div id="quizList" class="stack"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Updates</h2>
+            <span id="updateCount">0</span>
+          </div>
+          <div id="updateList" class="stack"></div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
