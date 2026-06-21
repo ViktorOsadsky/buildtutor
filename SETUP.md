@@ -1,9 +1,9 @@
 # buildtutor-mcp Setup Guide
 
-A working starter is already in this folder: `package.json`, `tsconfig.json`,
-and `src/index.ts` with a stdio MCP server plus a local web front end. Major
-project updates become short infrastructure lessons on the website, and quizzes
-only appear when a lesson recommends one.
+After cloning the repo, you already have the full starter in place:
+`package.json`, `tsconfig.json`, and `src/index.ts` with a stdio MCP server
+plus a local web front end. Major project updates become short infrastructure
+lessons on the website, and quizzes only appear when a lesson recommends one.
 
 ## 1. Prerequisites
 
@@ -60,8 +60,9 @@ with your real API key. That launcher clears a stale previous buildtutor
 process before it starts the real MCP server.
 
 **Claude Code:** copy `mcp-config-examples/claude-code.mcp.json` to `.mcp.json`
-in the root of whatever project you'll demo building. Restart Claude Code in
-that project, then run `/mcp` to confirm `buildtutor` is listed and connected.
+in the root of the project you want to build with buildtutor. Restart Claude
+Code in that project, then run `/mcp` to confirm `buildtutor` is listed and
+connected.
 
 **Cursor:** copy `mcp-config-examples/cursor.mcp.json` into Cursor's MCP
 settings, same shape.
@@ -71,8 +72,8 @@ into `~/.codex/config.toml`. Double-check the exact key name against current
 Codex docs first.
 
 **VS Code:** copy `mcp-config-examples/vscode.mcp.json` to `.vscode/mcp.json`
-in the demo project. Verify `servers` vs `mcpServers` against current docs
-before relying on it live.
+in the project you want to build with buildtutor. Verify `servers` vs
+`mcpServers` against current docs before relying on it live.
 
 The dashboard listens on the exact port from `BUILDTUTOR_WEB_PORT` or `3333`.
 If that port is already in use, the launcher clears the old process first and
