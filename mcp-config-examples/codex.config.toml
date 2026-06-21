@@ -4,7 +4,7 @@
 
 [mcp_servers.buildtutor]
 command = "node"
-args = ["/absolute/path/to/buildtutor-mcp/build/index.js"]
+args = ["/absolute/path/to/buildtutor-mcp/scripts/launch.mjs"]
 
 [mcp_servers.buildtutor.env]
 ANTHROPIC_API_KEY = "sk-ant-your-key-here"
